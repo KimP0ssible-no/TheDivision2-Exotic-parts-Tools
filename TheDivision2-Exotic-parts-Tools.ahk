@@ -1,0 +1,690 @@
+﻿#Requires AutoHotkey v2.0
+#UseHook
+#SingleInstance Force
+
+;=======全局变量=========
+; 读取游戏路径（如果配置文件不存在，则提示用户设置）
+global stopLoop := false
+global TheDivision2Path := IniRead(A_ScriptDir "\config.ini", "Game", "TheDivision2Path", "")
+;检测网络连接
+global adapter := IniRead(A_ScriptDir "\config.ini", "Network", "Adapter", "")
+SplitPath(TheDivision2Path, &fileName)  ; 提取文件名
+global gamefile := fileName
+global pbPID := 0
+; 断网方式常量
+global NET_FIREWALL := 1      ; 防火墙规则
+global NET_ADAPTER := 2       ; 禁用网卡
+global NET_PROXYBRIDGE := 3   ; ProxyBridge
+global configFile := A_ScriptDir "\config.ini"
+global NetMethod := NET_FIREWALL
+;运行状态显示
+global iterationCount := 0
+global numberOfErrors := 0
+global netError := 0
+; ========== GUI ==========
+
+; ========== 获取网卡列表 ==========
+GetNetworkAdapters() {
+    adapters := []
+    try {
+        wmi := ComObject("WbemScripting.SWbemLocator").ConnectServer("", "root\cimv2")
+        query := "SELECT * FROM Win32_NetworkAdapter WHERE PhysicalAdapter=True AND NetEnabled=True"
+        for adapter in wmi.ExecQuery(query) {
+            if (adapter.NetConnectionID)
+                adapters.Push(adapter.NetConnectionID)
+        }
+    }
+    return adapters
+}
+
+; ========== GUI 回调函数 ==========
+BrowseFile(*) {
+    global editPath
+    selected := FileSelect("3", , "选择 TheDivision2.exe", "可执行文件 (*.exe)")
+    if selected != ""
+        editPath.Value := selected
+}
+
+RefreshAdapterList() {
+    global comboAdapter, savedAdapter
+    adapters := GetNetworkAdapters()
+    comboAdapter.Delete()
+    for ad in adapters
+        comboAdapter.Add([ad])
+    if adapters.Length = 0
+        comboAdapter.Add(["未检测到可用网卡"])
+
+    ; 恢复之前保存的适配器
+    if savedAdapter {
+        for i, ad in adapters {
+            if ad = savedAdapter {
+                comboAdapter.Choose(i)
+                break
+            }
+        }
+    }
+}
+
+; 检查并关闭窗口（如果配置有效）
+CheckAndClose() {
+    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter
+    global comboNetMethod
+    path := Trim(editPath.Value)
+    adapter := Trim(comboAdapter.Text)
+    if path = "" {
+        MsgBox "请先选择游戏路径！", "提示", 0x40
+        return false
+    }
+    if adapter = "" || adapter = "未检测到可用网卡" {
+        MsgBox "请先选择一个有效的网络适配器！", "提示", 0x40
+        return false
+    }
+    ; 保存配置
+    IniWrite path, configFile, "Game", "TheDivision2Path"
+    IniWrite adapter, configFile, "Network", "Adapter"
+    ; 保存断网方式
+    IniWrite comboNetMethod.Value, configFile, "Settings", "NetMethod"
+    ; 更新全局变量
+    TheDivision2Path := path
+    NetworkAdapter := adapter
+    return true
+}
+
+; 窗口关闭事件（右上角 X）
+GuiClose(*) {
+    if CheckAndClose() {
+        mainGui.Destroy()
+    }
+    return true
+}
+
+; ========== GUI ==========
+global mainGui, editPath, comboAdapter, savedAdapter
+global TheDivision2Path, NetworkAdapter   ; 主脚本使用的全局变量
+
+mainGui := Gui()
+mainGui.Title := "自动化控制台"
+mainGui.SetFont("s10")
+; ========== 说明文本 ==========
+mainGui.Add("Text", "x10 y260 w480 h30", "网线和WIFI使用其中一个，保存后F10运行，F12强制停止程序")
+; 游戏路径区域
+mainGui.Add("Text", "x10 y10 w300 h30", "请选择《全境封锁2》的主程序路径：")
+editPath := mainGui.Add("Edit", "x10 y50 w400 h25 ReadOnly")
+btnBrowse := mainGui.Add("Button", "x420 y49 w80 h27", "浏览")
+
+; 网卡选择区域
+mainGui.Add("Text", "x10 y110 w300 h30", "选择当前连接的网络适配器：")
+comboAdapter := mainGui.Add("ComboBox", "x10 y150 w300 h200 Choose1")
+btnRefresh := mainGui.Add("Button", "x320 y148 w80 h27", "刷新")
+
+; 关闭按钮
+btnCancel := mainGui.Add("Button", "x10 y200 w80 h30", "保存并关闭窗口")
+
+mainGui.Add("Text", "x10 y280 w300 h30", "选择断网方式：")
+comboNetMethod := mainGui.Add("ComboBox", "x10 y310 w200 h200 Choose1", ["防火墙规则（裸连网络稳定，响应快）", "禁用网卡（暴力断网，需选择网络适配器）", "ProxyBridge（代理阻塞断网，可使用加速器）"])
+
+; 加载已保存的选项，确保是有效整数
+savedMethod := IniRead(configFile, "Settings", "NetMethod", NET_FIREWALL)
+savedMethod := savedMethod + 0   ; 转换为整数
+if (savedMethod < 1 || savedMethod > 3)
+    savedMethod := NET_FIREWALL
+comboNetMethod.Choose(savedMethod)
+
+; 加载已有配置（仅用于显示）
+savedPath := IniRead(configFile, "Game", "TheDivision2Path", "")
+if savedPath
+    editPath.Value := savedPath
+
+savedAdapter := IniRead(configFile, "Network", "Adapter", "")
+RefreshAdapterList()   ; 填充网卡列表
+
+; 绑定事件
+btnBrowse.OnEvent("Click", BrowseFile)
+btnRefresh.OnEvent("Click", (*) => RefreshAdapterList())
+btnCancel.OnEvent("Click", (*) => CheckAndClose() && mainGui.Destroy())
+mainGui.OnEvent("Close", GuiClose)   ; 处理右上角 X
+
+; 显示窗口
+mainGui.Show()
+
+; 等待用户关闭窗口
+WinWaitClose "自动化控制台"
+
+; ========== 窗口关闭后，从配置文件读取配置 ==========
+TheDivision2Path := IniRead(configFile, "Game", "TheDivision2Path", "")
+NetworkAdapter := IniRead(configFile, "Network", "Adapter", "")
+; 读取断网方式，默认为防火墙规则
+NetMethod := IniRead(configFile, "Settings", "NetMethod", NET_FIREWALL)
+
+; 颜色检测函数（支持重试，使用 DllCall 获取颜色）
+; 参数：
+;   hwnd        - 窗口句柄
+;   percentX, percentY - 相对于窗口左上角的偏移百分比
+;   targetColor - 期望的颜色（十六进制，如 0x136AFF）
+;   variation   - 容差（0~255），推荐 10~30，默认 20
+;   maxRetries  - 最大重试次数，默认 20
+;   retryDelay  - 重试间隔（毫秒），默认 200
+;   debug       - 是否显示F10调试信息，默认 false
+; 返回：匹配返回 true，否则 false
+CheckColorWithRetry(hwnd, percentX, percentY, targetColor, variation := 20, maxRetries := 20, retryDelay := 200, debug := false) {
+        ; 检查窗口句柄是否有效
+        loop maxRetries {
+            if !WinExist("ahk_id " hwnd){
+                return false
+            }
+        WinGetPos(&winX, &winY, &winW, &winH, hwnd)
+        ; 将百分比转换为绝对坐标
+        screenX := winW * percentX
+        screenY := winH * percentY
+
+        if debug {
+            ToolTip "检查颜色位置: " screenX "," screenY "`n预期: " Format("{:06X}", targetColor)
+            SetTimer () => ToolTip(), -1000
+        } 
+
+        ; 使用 DllCall 获取颜色
+        hDC := DllCall("GetDC", "Ptr", 0, "Ptr")
+        actualColor := DllCall("GetPixel", "Ptr", hDC, "Int", screenX, "Int", screenY, "UInt")
+        DllCall("ReleaseDC", "Ptr", 0, "Ptr", hDC)
+
+        if debug {
+            ToolTip "实际颜色: " Format("{:06X}", actualColor)
+            SetTimer () => ToolTip(), -1000
+        }
+
+        if ColorsMatch(actualColor, targetColor, variation) {
+            return true
+        }
+
+        if (A_Index < maxRetries)
+            Sleep retryDelay
+    }
+    return false
+}
+
+
+; 颜色匹配辅助函数（保持不变）
+ColorsMatch(color1, color2, variation) {
+    r1 := (color1 >> 16) & 0xFF
+    g1 := (color1 >> 8) & 0xFF
+    b1 := color1 & 0xFF
+    r2 := (color2 >> 16) & 0xFF
+    g2 := (color2 >> 8) & 0xFF
+    b2 := color2 & 0xFF
+    return (Abs(r1 - r2) <= variation && Abs(g1 - g2) <= variation && Abs(b1 - b2) <= variation)
+}
+
+;==断网==
+DisableAdapter(adapterName) {
+    global NetMethod, TheDivision2Path, pbPID
+    if (NetMethod = NET_FIREWALL) {
+        ; 防火墙规则
+        RunWait 'netsh advfirewall firewall add rule name="BlockGame_Out" dir=out action=block program="' TheDivision2Path '" enable=yes', , "Hide"
+        RunWait 'netsh advfirewall firewall add rule name="BlockGame_In" dir=in action=block program="' TheDivision2Path '" enable=yes', , "Hide"
+    } else if (NetMethod = NET_ADAPTER) {
+        ; 禁用网卡
+        RunWait 'netsh interface set interface "' adapterName '" admin=disable', , "Hide"
+    } else if (NetMethod = NET_PROXYBRIDGE) {
+        ; ProxyBridge
+        SplitPath(TheDivision2Path, &gameExe)
+        pbPath := A_ScriptDir "\ProxyBridge\ProxyBridge_CLI.exe"
+        if FileExist(pbPath) {
+            Run '"' pbPath '" --rule "' gameExe ':*:*:BOTH:BLOCK"', , "Hide", &pbPID
+        } else {
+            MsgBox "ProxyBridge 未找到,请确认脚本目录下ProxyBridge/ProxyBridge_CLI.exe是否存在"
+        }
+    }
+}
+;========
+
+;==恢复网络==
+EnableAdapter(adapterName) {
+    global NetMethod, pbPID
+    if (NetMethod = NET_FIREWALL) {
+        ; 删除防火墙规则
+        RunWait 'netsh advfirewall firewall delete rule name="BlockGame_Out"', , "Hide"
+        RunWait 'netsh advfirewall firewall delete rule name="BlockGame_In"', , "Hide"
+    } else if (NetMethod = NET_ADAPTER) {
+        ; 启用网卡
+        RunWait 'netsh interface set interface "' adapterName '" admin=enable', , "Hide"
+    } else if (NetMethod = NET_PROXYBRIDGE) {
+        ; 关闭 ProxyBridge 进程
+        if pbPID
+            ProcessClose pbPID
+        else
+            ProcessClose "ProxyBridge_CLI.exe"
+    }
+}
+;===========
+
+; 创建悬浮窗
+FloatingWindow := Gui("+AlwaysOnTop +ToolWindow -Caption +LastFound")
+FloatingWindow.BackColor := "000000"
+WinSetTransparent 180, FloatingWindow
+WinSetExStyle "+0x20", FloatingWindow
+
+; 添加多行文本控件，手动指定位置和宽度（确保足够宽）
+textCtrl := FloatingWindow.Add("Text", "cWhite x10 y10 w200 h100", "循环次数:0`n错误重置次数:0`n掉线重连次数:0")
+textCtrl.SetFont("s12", "微软雅黑")
+
+; 手动设定窗口大小（请根据实际显示效果调整）
+winWidth := 220   ; 宽度比文本宽度稍宽
+winHeight := 100   ; 高度足够显示三行文字（若下半部分不显示，请增加此值，例如 100、110）
+
+; 窗口位置（屏幕右上角，距右边缘 10 像素，距上边缘 10 像素）
+xPos := A_ScreenWidth - winWidth - 10
+yPos := 10
+
+; 显示窗口
+FloatingWindow.Show("x" xPos " y" yPos " w" winWidth " h" winHeight " NoActivate")
+
+; 定时更新显示
+SetTimer(UpdateDisplay, 1000)
+
+UpdateDisplay() {
+    global iterationCount, numberOfErrors, netError
+    iter := IsSet(iterationCount) ? iterationCount : 0
+    err := IsSet(numberOfErrors) ? numberOfErrors : 0
+    net := IsSet(netError) ? netError : 0
+    textCtrl.Value := "循环次数:" iter "`n错误重置次数:" err "`n掉线重连次数:" net
+}
+
+;===========启动重置脚本============
+reboot(){
+    ToolTip "重置进程执行中..."
+    SetTimer () => ToolTip(), -2000
+    global adapter
+    global gamefile
+    global numberOfErrors
+    global netError
+    EnableAdapter(adapter)
+    gamghwd := WinExist("ahk_exe" gamefile)
+    Sleep 500
+    ;检测是否掉线
+    lopNbr := 0
+    if gamghwd{
+        loop 10{
+            networkerror := CheckColorWithRetry(gamghwd,0.431640625,0.55625,0x3C3A93,30,10,500,false)
+            if networkerror{
+                ControlSend "{Space down}", , gamghwd
+                Sleep 100
+                ControlSend "{Space up}", , gamghwd
+                Sleep 100
+                ControlSend "{Space down}", , gamghwd
+                Sleep 100
+                ControlSend "{Space up}", , gamghwd
+                Sleep 500
+                mainObj := CheckColorWithRetry(gamghwd,0.50234375,0.936,0x136AFF,30,150,1000,false)
+                if mainObj{
+                    Sleep 1000
+                    Loop "已恢复，守护进程退出"
+                    SetTimer () => ToolTip(), -1500
+                    netError += 1
+                    RunAutomation()
+                    return
+                }else{
+                    Sleep 10000
+                }
+            }
+            lopNbr += 1
+            ToolTip "掉线检测重试：" lopNbr "/10"
+            Sleep 3000
+        }
+        ToolTip
+    }else{
+        ToolTip "游戏崩溃，执行重启步骤"
+        SetTimer () => ToolTip(), -1500
+    }
+    Sleep 5000
+    re:
+    if WinExist("ahk_exe" gamefile) {
+        ToolTip "游戏窗口存在,杀死游戏进程"
+        SetTimer () => ToolTip(), -1500
+        RunWait 'taskkill /f /im ' gamefile, , "Hide"
+    } else {
+        ToolTip "未检测到游戏窗口，检测游戏进程中"
+        SetTimer () => ToolTip(), -1500
+        if ProcessExist(gamefile) {
+            ToolTip "游戏正在运行,终止游戏进程中"
+            SetTimer () => ToolTip(), -1500
+            RunWait 'taskkill /f /im ' gamefile, , "Hide"
+        } else {
+            ToolTip "未运行,执行启动"
+        }
+    }
+    RunWait 'taskkill /f /im ' "upc.exe", , "Hide"
+    Sleep 10000
+    maxRetries := 60 ;重试次数
+    retryCount := 0 ;初始化计量
+    found := false
+
+    while !found && retryCount < maxRetries {
+        retryCount += 1
+
+    if ProcessExist(gamefile){
+            ToolTip "游戏运行中，重试... (" retryCount "/" maxRetries ")"
+            SetTimer () => ToolTip(), -1500
+            RunWait 'taskkill /f /im ' gamefile, , "Hide"
+            Sleep 10000   ; 等待10秒后重试
+        } else {
+            ToolTip "开始运行游戏"
+            SetTimer () => ToolTip(), -1500 
+            Run TheDivision2Path
+            found := true
+        }
+    }
+
+    if !found {
+        ToolTip "超过最大重试次数，脚本退出"
+        SetTimer () => ToolTip(), -1500
+        ExitApp
+    }
+    autto := 0
+
+    loop 60{
+    gamghwd := WinExist("ahk_exe" gamefile)
+        if gamghwd {
+        ToolTip "已捕获游戏窗口"
+        SetTimer () => ToolTip(), -2000
+        break
+        }
+        Sleep 5000
+    }
+    if !gamghwd{
+        ToolTip "未找到游戏窗口，重新运行"
+        SetTimer () => ToolTip(), -1500
+        goto re
+    }
+
+    Sleep 2000
+    WinActivate gamghwd               ; 激活（聚焦）
+    WinMaximize gamghwd               ; 全屏
+    ;真实模式选择判断，后续移除了要删了这里
+    found := CheckColorWithRetry(gamghwd,0.0791666666666667,0.8574074074074074,0xFFFFFF,10, 300,2000,false)
+    if found{
+        ToolTip "进入主页面，开始检测是否到选人界面"
+        ControlSend "{Space down}", , gamghwd
+        Sleep 100
+        ControlSend "{Space up}", , gamghwd
+        ;进入主页面
+        ;检测是否到选人界面
+        advertisement := true
+        foundol := CheckColorWithRetry(gamghwd,0.50234375,0.9361,0x136AFF,20, 60,1000,false)
+        found2 :=  CheckColorWithRetry(gamghwd,0.498046875,0.250694,0x136AFF,20, 30,1000,false)
+        loop 30{
+            if foundol{
+                Sleep 1000
+                Loop "已恢复，守护进程退出"
+                SetTimer () => ToolTip(), -1500
+                numberOfErrors += 1
+                RunAutomation()
+                return
+            }else{
+                if found2{
+                    ControlSend "{Space down}", , gamghwd
+                    Sleep 50
+                    ControlSend "{Space up}", , gamghwd
+                    Sleep 500
+                }else{
+                    advertisement := false
+                }
+            }
+        }
+        if !advertisement {
+            goto re
+        }
+    }else{
+        Sleep 10000
+        goto re
+    }
+}
+;==================================
+
+;主要函数
+RunAutomation(){
+    ToolTip "开始运行..."
+    SetTimer () => ToolTip(), -1500
+    ;============初始化==================
+    global stopLoop
+    stopLoop := false
+    global adapter
+    global gamefile
+    global iterationCount
+    gameHwnd := WinExist("ahk_exe " gamefile)
+    Sleep 500
+    ; 获取游戏窗口句柄
+    if !gameHwnd {
+        MsgBox "未找到游戏窗口，请确保游戏正在运行`n" gamefile "`n" gameHwnd
+        SetTimer () => ToolTip(), -1500
+        return
+    }
+    ;===================================
+    while !stopLoop {
+        totalRetries := 3
+        found := false
+        ;检测是否在主角色
+        mainObj := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,30,150,1000,false)
+        if mainObj{
+            ToolTip "已检测到主角色，开始切换角色"
+            SetTimer () => ToolTip(), -1500
+            loop totalRetries {
+                SendMode "Input"
+                Loop 5 {
+                    ControlSend "{c down}", , gameHwnd
+                    Sleep 30
+                    ControlSend "{c up}", , gameHwnd
+                    Sleep 100
+                }
+                Sleep 500
+
+                ; 检测切换到新建角色
+                found := CheckColorWithRetry(gameHwnd,0.551953125,0.93125,0x136AFF,30,10,200,false)
+
+                if found {
+                    ToolTip "已检测到控件准备断网"
+                    SetTimer () => ToolTip(), -1500
+                    break   ; 找到按钮，跳出外层循环
+                }
+                ; 未找到，等待一下再重试整个流程
+                Sleep 3000
+            }
+
+            if found {
+                next:
+                Sleep 500
+                ControlSend "{Space down}", , gameHwnd
+                Sleep 30
+                ControlSend "{Space up}", , gameHwnd
+                ;选择战役
+                Sleep 800
+                ControlSend "{Space down}", , gameHwnd
+                Sleep 500
+                ControlSend "{Space up}", , gameHwnd   
+                Sleep 1000
+                ; 断网
+                DisableAdapter(adapter)
+                ToolTip "已断开网络"
+                SetTimer () => ToolTip(), -1500
+                foundSecond := CheckColorWithRetry(gameHwnd,0.431640625,0.55625,0x3C3A93,30,300,500,false)
+                if foundSecond{
+                    ToolTip "已检测到控件恢复联网"
+                    SetTimer () => ToolTip(), -1500
+                    ; 恢复
+                    EnableAdapter(adapter)
+                    Sleep 30
+                    ControlSend "{Space down}", , gameHwnd
+                    Sleep 100
+                    ControlSend "{Space up}", , gameHwnd
+                    Sleep 1000
+                    ControlSend "{Space down}", , gameHwnd
+                    Sleep 100
+                    ControlSend "{Space up}", , gameHwnd
+                    ;检测切换主角色
+                    nextEquipment:
+                    foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,30,150,1000,false)
+                    if foundtheer{
+                        ToolTip "已检测到控件，继续主角色拆解零件"
+                        SetTimer () => ToolTip(), -1500
+                        Sleep 1000
+                        ControlSend "{Space down}", , gameHwnd
+                        Sleep 50
+                        ControlSend "{Space up}", , gameHwnd
+                        foundf := CheckColorWithRetry(gameHwnd,0.029296875,0.9263889,0xFFFFFF,30,150,1000,false)
+                        if foundf{
+                            ToolTip "已检测到控件，确认已成功进入世界，开始移动"
+                            SetTimer () => ToolTip(), -2000
+                            Sleep 1500
+                            Send "{W down}{D down}"
+                            Sleep 220
+                            Send "{W up}"
+                            Sleep 120
+                            Send "{D up}"
+                            Sleep 200
+                            Send "{F down}"
+                            Sleep 1800
+                            Send "{F up}"
+                            ;进入装备页面
+                            equipment := CheckColorWithRetry(gameHwnd,0.725390625,0.240278,0x000000,0, 10,500,false)
+                            if equipment{
+                                ToolTip "确认进入装备页面"
+                                SetTimer () => ToolTip(), -2000
+                                Sleep 500
+                                ControlSend "{E down}", , gameHwnd
+                                Sleep 50
+                                ControlSend "{E up}", , gameHwnd
+                                Sleep 100
+                                equipment2 := CheckColorWithRetry(gameHwnd,0.68125,0.490278,0x000000,10, 30,500,false)
+                                if equipment2 {
+                                    ToolTip "开始收取武器"
+                                    SetTimer () => ToolTip(), -2000
+                                    Sleep 1000
+                                    ControlSend "{D down}", , gameHwnd
+                                    Sleep 50
+                                    ControlSend "{D up}", , gameHwnd
+                                    Sleep 100
+                                    ControlSend "{W down}", , gameHwnd
+                                    Sleep 50
+                                    ControlSend "{W up}", , gameHwnd
+                                    Sleep 200
+                                    ControlSend "{Space down}", , gameHwnd
+                                    Sleep 50
+                                    ControlSend "{Space up}", , gameHwnd
+                                    Sleep 2000
+                                    ControlSend "{X down}", , gameHwnd
+                                    Sleep 50
+                                    ControlSend "{X up}", , gameHwnd
+                                    Sleep 200
+                                    ControlSend "{S down}", , gameHwnd
+                                    Sleep 50
+                                    ControlSend "{S up}", , gameHwnd
+                                    Sleep 200
+                                    ControlSend "{Space down}", , gameHwnd
+                                    Sleep 50
+                                    ControlSend "{Space up}", , gameHwnd
+                                    Sleep 200
+                                    Loop 4 {
+                                        ControlSend "{F down}", , gameHwnd
+                                        Sleep 50
+                                        ControlSend "{F up}", , gameHwnd
+                                        Sleep 300
+                                    }
+                                    Sleep 200
+                                    Loop 3{
+                                        ControlSend "{Q down}", , gameHwnd
+                                        Sleep 50
+                                        ControlSend "{Q up}", , gameHwnd
+                                        Sleep 50
+                                    }
+                                        Sleep 500
+                                        ToolTip "开始拆解"
+                                        SetTimer () => ToolTip(), -2000
+                                        ControlSend "{Tab down}", , gameHwnd
+                                        Sleep 1800
+                                        ControlSend "{Tab up}", , gameHwnd
+                                        Sleep 10
+                                        ControlSend "{ESC down}", , gameHwnd
+                                        Sleep 1500
+                                        ControlSend "{ESC up}", , gameHwnd
+                                        Sleep 100
+                                }else{
+                                    ControlSend "{ESC down}", , gameHwnd
+                                    Sleep 1500
+                                    ControlSend "{ESC up}", , gameHwnd
+                                    Sleep 100
+                                }
+                            }else{
+                                ControlSend "{ESC down}", , gameHwnd
+                                Sleep 50
+                                ControlSend "{ESC up}", , gameHwnd
+                                Sleep 500
+                                Send "{G down}"
+                                Sleep 80
+                                Send "{G up}"
+                                Sleep 500
+                                ControlSend "{Space down}", , gameHwnd
+                                Sleep 50
+                                ControlSend "{Space up}", , gameHwnd
+                                goto nextEquipment
+                            }
+                            ;退出
+                            ControlSend "{ESC down}", , gameHwnd
+                            Sleep 50
+                            ControlSend "{ESC up}", , gameHwnd
+                            Sleep 500
+                            Send "{G down}"
+                            Sleep 80
+                            Send "{G up}"
+                            Sleep 500
+                            ControlSend "{Space down}", , gameHwnd
+                            Sleep 50
+                            ControlSend "{Space up}", , gameHwnd
+                            ToolTip "准备开始下一次循环"
+                            SetTimer () => ToolTip(), -1500
+                            ;确认回到主界面
+                            foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,30, 150,1000,false)
+                            if foundtheer{
+                                iterationCount += 1
+                                goto End
+                            }else{
+                                reboot()
+                                return
+                            }
+                        }else{
+                            reboot()
+                            return
+                        }
+                    }else{
+                        reboot()
+                        return
+                    }
+                }else{
+                    EnableAdapter(adapter)
+                    Sleep 10000
+                    reboot()
+                    return
+                }
+            } else {
+                reboot()
+                return
+            }
+            End:
+        }else{
+            reboot()
+            return
+        }
+    }
+}
+;终止程序
+exitkill(){
+    global adapter
+    RunWait 'netsh interface set interface "' adapter '" admin=enable', , "Hide"
+    RunWait 'netsh advfirewall firewall delete rule name="BlockGame_Out"', , "Hide"
+    RunWait 'netsh advfirewall firewall delete rule name="BlockGame_In"', , "Hide"
+    ProcessClose "ProxyBridge_CLI.exe"
+    ExitApp
+}
+
+F11:: global stopLoop := true
+F12:: exitkill()
+F10:: RunAutomation()
+F9:: reboot()
