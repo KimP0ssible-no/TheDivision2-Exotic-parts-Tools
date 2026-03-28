@@ -47,7 +47,7 @@
 代理阻止：原理是临时顶掉加速器代理，所以可以搭配加速器一起用，可能会导致断网后延迟加载影响效率，需要开着加速器重新登陆一次育碧平台
 （依赖开源项目ProxyBridge，在此表达感谢）
 
-[ProxyBridge]([https://www.runoob.com](https://github.com/InterceptSuite/ProxyBridge))
+[ProxyBridge](https://github.com/InterceptSuite/ProxyBridge)
 
 # ---------------------------   热键说明   ---------------------------
 F10：开始运行程序主要逻辑
