@@ -1,6 +1,11 @@
-﻿#Requires AutoHotkey v2.0
+#Requires AutoHotkey v2.0
 #UseHook
 #SingleInstance Force
+
+if !A_IsAdmin {
+    Run '*RunAs "' A_AhkPath '" "' A_ScriptFullPath '"'
+    ExitApp
+}
 
 ;=======全局变量=========
 ; 读取游戏路径（如果配置文件不存在，则提示用户设置）
@@ -67,7 +72,7 @@ RefreshAdapterList() {
 
 ; 检查并关闭窗口（如果配置有效）
 CheckAndClose() {
-    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter
+    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter,gamefile
     global comboNetMethod
     path := Trim(editPath.Value)
     adapter := Trim(comboAdapter.Text)
@@ -87,6 +92,8 @@ CheckAndClose() {
     ; 更新全局变量
     TheDivision2Path := path
     NetworkAdapter := adapter
+    SplitPath(TheDivision2Path, &fileName)  ; 提取文件名
+    gamefile := fileName
     return true
 }
 
@@ -297,6 +304,7 @@ reboot(){
     global gamefile
     global numberOfErrors
     global netError
+    global TheDivision2Path
     EnableAdapter(adapter)
     gamghwd := WinExist("ahk_exe" gamefile)
     Sleep 500
@@ -306,13 +314,13 @@ reboot(){
         loop 10{
             networkerror := CheckColorWithRetry(gamghwd,0.431640625,0.55625,0x3C3A93,30,10,500,false)
             if networkerror{
-                ControlSend "{Space down}", , gamghwd
+                SendInput "{Space down}"
                 Sleep 100
-                ControlSend "{Space up}", , gamghwd
+                SendInput "{Space up}"
                 Sleep 100
-                ControlSend "{Space down}", , gamghwd
+                SendInput "{Space down}"
                 Sleep 100
-                ControlSend "{Space up}", , gamghwd
+                SendInput "{Space up}"
                 Sleep 500
                 mainObj := CheckColorWithRetry(gamghwd,0.50234375,0.936,0x136AFF,30,150,1000,false)
                 if mainObj{
@@ -403,9 +411,9 @@ reboot(){
     found := CheckColorWithRetry(gamghwd,0.0791666666666667,0.8574074074074074,0xFFFFFF,10, 300,2000,false)
     if found{
         ToolTip "进入主页面，开始检测是否到选人界面"
-        ControlSend "{Space down}", , gamghwd
+        SendInput "{Space down}"
         Sleep 100
-        ControlSend "{Space up}", , gamghwd
+        SendInput "{Space up}"
         ;进入主页面
         ;检测是否到选人界面
         advertisement := true
@@ -421,9 +429,9 @@ reboot(){
                 return
             }else{
                 if found2{
-                    ControlSend "{Space down}", , gamghwd
+                    SendInput "{Space down}"
                     Sleep 50
-                    ControlSend "{Space up}", , gamghwd
+                    SendInput "{Space up}"
                     Sleep 500
                 }else{
                     advertisement := false
@@ -470,9 +478,9 @@ RunAutomation(){
             loop totalRetries {
                 SendMode "Input"
                 Loop 5 {
-                    ControlSend "{c down}", , gameHwnd
+                    SendInput "{c down}"
                     Sleep 30
-                    ControlSend "{c up}", , gameHwnd
+                    SendInput "{c up}"
                     Sleep 100
                 }
                 Sleep 500
@@ -492,14 +500,14 @@ RunAutomation(){
             if found {
                 next:
                 Sleep 500
-                ControlSend "{Space down}", , gameHwnd
+                SendInput "{Space down}"
                 Sleep 30
-                ControlSend "{Space up}", , gameHwnd
+                SendInput "{Space up}"
                 ;选择战役
                 Sleep 800
-                ControlSend "{Space down}", , gameHwnd
+                SendInput "{Space down}"
                 Sleep 500
-                ControlSend "{Space up}", , gameHwnd   
+                SendInput "{Space up}"   
                 Sleep 1000
                 ; 断网
                 DisableAdapter(adapter)
@@ -512,13 +520,13 @@ RunAutomation(){
                     ; 恢复
                     EnableAdapter(adapter)
                     Sleep 30
-                    ControlSend "{Space down}", , gameHwnd
+                    SendInput "{Space down}"
                     Sleep 100
-                    ControlSend "{Space up}", , gameHwnd
+                    SendInput "{Space up}"
                     Sleep 1000
-                    ControlSend "{Space down}", , gameHwnd
+                    SendInput "{Space down}"
                     Sleep 100
-                    ControlSend "{Space up}", , gameHwnd
+                    SendInput "{Space up}"
                     ;检测切换主角色
                     nextEquipment:
                     foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,30,150,1000,false)
@@ -526,9 +534,9 @@ RunAutomation(){
                         ToolTip "已检测到控件，继续主角色拆解零件"
                         SetTimer () => ToolTip(), -1500
                         Sleep 1000
-                        ControlSend "{Space down}", , gameHwnd
+                        SendInput "{Space down}"
                         Sleep 50
-                        ControlSend "{Space up}", , gameHwnd
+                        SendInput "{Space up}"
                         foundf := CheckColorWithRetry(gameHwnd,0.029296875,0.9263889,0xFFFFFF,30,150,1000,false)
                         if foundf{
                             ToolTip "已检测到控件，确认已成功进入世界，开始移动"
@@ -549,95 +557,95 @@ RunAutomation(){
                                 ToolTip "确认进入装备页面"
                                 SetTimer () => ToolTip(), -2000
                                 Sleep 500
-                                ControlSend "{E down}", , gameHwnd
+                                SendInput "{E down}"
                                 Sleep 50
-                                ControlSend "{E up}", , gameHwnd
+                                SendInput "{E up}"
                                 Sleep 100
                                 equipment2 := CheckColorWithRetry(gameHwnd,0.68125,0.490278,0x000000,10, 30,500,false)
                                 if equipment2 {
                                     ToolTip "开始收取武器"
                                     SetTimer () => ToolTip(), -2000
                                     Sleep 1000
-                                    ControlSend "{D down}", , gameHwnd
+                                    SendInput "{D down}"
                                     Sleep 50
-                                    ControlSend "{D up}", , gameHwnd
+                                    SendInput "{D up}"
                                     Sleep 100
-                                    ControlSend "{W down}", , gameHwnd
+                                    SendInput "{W down}"
                                     Sleep 50
-                                    ControlSend "{W up}", , gameHwnd
+                                    SendInput "{W up}"
                                     Sleep 200
-                                    ControlSend "{Space down}", , gameHwnd
+                                    SendInput "{Space down}"
                                     Sleep 50
-                                    ControlSend "{Space up}", , gameHwnd
+                                    SendInput "{Space up}"
                                     Sleep 2000
-                                    ControlSend "{X down}", , gameHwnd
+                                    SendInput "{X down}"
                                     Sleep 50
-                                    ControlSend "{X up}", , gameHwnd
+                                    SendInput "{X up}"
                                     Sleep 200
-                                    ControlSend "{S down}", , gameHwnd
+                                    SendInput "{S down}"
                                     Sleep 50
-                                    ControlSend "{S up}", , gameHwnd
+                                    SendInput "{S up}"
                                     Sleep 200
-                                    ControlSend "{Space down}", , gameHwnd
+                                    SendInput "{Space down}"
                                     Sleep 50
-                                    ControlSend "{Space up}", , gameHwnd
+                                    SendInput "{Space up}"
                                     Sleep 200
                                     Loop 4 {
-                                        ControlSend "{F down}", , gameHwnd
+                                        SendInput "{F down}"
                                         Sleep 50
-                                        ControlSend "{F up}", , gameHwnd
+                                        SendInput "{F up}"
                                         Sleep 300
                                     }
                                     Sleep 200
                                     Loop 3{
-                                        ControlSend "{Q down}", , gameHwnd
+                                        SendInput "{Q down}"
                                         Sleep 50
-                                        ControlSend "{Q up}", , gameHwnd
+                                        SendInput "{Q up}"
                                         Sleep 50
                                     }
                                         Sleep 500
                                         ToolTip "开始拆解"
                                         SetTimer () => ToolTip(), -2000
-                                        ControlSend "{Tab down}", , gameHwnd
+                                        SendInput "{Tab down}"
                                         Sleep 1800
-                                        ControlSend "{Tab up}", , gameHwnd
+                                        SendInput "{Tab up}"
                                         Sleep 10
-                                        ControlSend "{ESC down}", , gameHwnd
+                                        SendInput "{ESC down}"
                                         Sleep 1500
-                                        ControlSend "{ESC up}", , gameHwnd
+                                        SendInput "{ESC up}"
                                         Sleep 100
                                 }else{
-                                    ControlSend "{ESC down}", , gameHwnd
+                                    SendInput "{ESC down}"
                                     Sleep 1500
-                                    ControlSend "{ESC up}", , gameHwnd
+                                    SendInput "{ESC up}"
                                     Sleep 100
                                 }
                             }else{
-                                ControlSend "{ESC down}", , gameHwnd
+                                SendInput "{ESC down}"
                                 Sleep 50
-                                ControlSend "{ESC up}", , gameHwnd
+                                SendInput "{ESC up}"
                                 Sleep 500
-                                Send "{G down}"
+                                SendInput "{G down}"
                                 Sleep 80
-                                Send "{G up}"
+                                SendInput "{G up}"
                                 Sleep 500
-                                ControlSend "{Space down}", , gameHwnd
+                                SendInput "{Space down}"
                                 Sleep 50
-                                ControlSend "{Space up}", , gameHwnd
+                                SendInput "{Space up}"
                                 goto nextEquipment
                             }
                             ;退出
-                            ControlSend "{ESC down}", , gameHwnd
+                            SendInput "{ESC down}"
                             Sleep 50
-                            ControlSend "{ESC up}", , gameHwnd
+                            SendInput "{ESC up}"
                             Sleep 500
                             Send "{G down}"
                             Sleep 80
                             Send "{G up}"
                             Sleep 500
-                            ControlSend "{Space down}", , gameHwnd
+                            SendInput "{Space down}"
                             Sleep 50
-                            ControlSend "{Space up}", , gameHwnd
+                            SendInput "{Space up}"
                             ToolTip "准备开始下一次循环"
                             SetTimer () => ToolTip(), -1500
                             ;确认回到主界面
@@ -681,10 +689,15 @@ exitkill(){
     RunWait 'netsh advfirewall firewall delete rule name="BlockGame_Out"', , "Hide"
     RunWait 'netsh advfirewall firewall delete rule name="BlockGame_In"', , "Hide"
     ProcessClose "ProxyBridge_CLI.exe"
-    ExitApp
+    RunWait 'net stop windivert', , "Hide"
 }
+;退出执行
+OnExit((*) => exitkill())
 
 F11:: global stopLoop := true
-F12:: exitkill()
+F12:: {
+    exitkill()
+    ExitApp
+}
 F10:: RunAutomation()
 F9:: reboot()
