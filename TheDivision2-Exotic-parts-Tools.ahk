@@ -8,25 +8,44 @@ if !A_IsAdmin {
 }
 
 ;=======全局变量=========
-; 读取游戏路径（如果配置文件不存在，则提示用户设置）
+;EDRSilencer路径
+global windowstite := "TheDivision2-Exotic-parts-Tools-1.0.3"
+global pbPath := A_ScriptDir "\EDRSilencer\EDRSilencer.exe"
 global stopLoop := false
 global TheDivision2Path := IniRead(A_ScriptDir "\config.ini", "Game", "TheDivision2Path", "")
 ;检测网络连接
 global adapter := IniRead(A_ScriptDir "\config.ini", "Network", "Adapter", "")
 SplitPath(TheDivision2Path, &fileName)  ; 提取文件名
 global gamefile := fileName
-global pbPID := 0
 ; 断网方式常量
 global NET_FIREWALL := 1      ; 防火墙规则
 global NET_ADAPTER := 2       ; 禁用网卡
-global NET_PROXYBRIDGE := 3   ; ProxyBridge
+global NET_PROXYBRIDGE := 3   ; EDRSilencer
 global configFile := A_ScriptDir "\config.ini"
 global NetMethod := NET_FIREWALL
 ;运行状态显示
 global iterationCount := 0
 global numberOfErrors := 0
 global netError := 0
-; ========== GUI ==========
+; 检查文件是否存在，不存在则释放
+if !FileExist(pbPath) {
+    ; 确保目标目录存在
+    targetDir := A_ScriptDir "\EDRSilencer"
+    if !DirExist(targetDir)
+        DirCreate(targetDir)
+    ; 尝试释放文件
+    try {
+        FileInstall "EDRSilencer\EDRSilencer.exe", pbPath, 1
+    } catch as e {
+        MsgBox "程序无法读写所在目录，请尝试使用管理员权限运行，或将程序移动到其他目录下"
+        ExitApp
+    }
+}
+
+if !FileExist(pbPath){
+    MsgBox "程序异常退出,原因:`nEDRSilencer 未找到,请确认脚本目录下EDRSilencer/EDRSilencer.exe是否存在"
+    ExitApp
+}
 
 ; ========== 获取网卡列表 ==========
 GetNetworkAdapters() {
@@ -72,7 +91,7 @@ RefreshAdapterList() {
 
 ; 检查并关闭窗口（如果配置有效）
 CheckAndClose() {
-    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter,gamefile
+    global editPath, comboAdapter, configFile, TheDivision2Path, NetworkAdapter,gamefile,NetMethod
     global comboNetMethod
     path := Trim(editPath.Value)
     adapter := Trim(comboAdapter.Text)
@@ -92,6 +111,7 @@ CheckAndClose() {
     ; 更新全局变量
     TheDivision2Path := path
     NetworkAdapter := adapter
+    NetMethod := comboNetMethod.Value
     SplitPath(TheDivision2Path, &fileName)  ; 提取文件名
     gamefile := fileName
     return true
@@ -110,7 +130,7 @@ global mainGui, editPath, comboAdapter, savedAdapter
 global TheDivision2Path, NetworkAdapter   ; 主脚本使用的全局变量
 
 mainGui := Gui()
-mainGui.Title := "自动化控制台"
+mainGui.Title := windowstite
 mainGui.SetFont("s10")
 ; ========== 说明文本 ==========
 mainGui.Add("Text", "x10 y260 w480 h30", "网线和WIFI使用其中一个，保存后F10运行，F12强制停止程序")
@@ -128,7 +148,7 @@ btnRefresh := mainGui.Add("Button", "x320 y148 w80 h27", "刷新")
 btnCancel := mainGui.Add("Button", "x10 y200 w80 h30", "保存并关闭窗口")
 
 mainGui.Add("Text", "x10 y280 w300 h30", "选择断网方式：")
-comboNetMethod := mainGui.Add("ComboBox", "x10 y310 w200 h200 Choose1", ["防火墙规则（裸连网络稳定，响应快）", "禁用网卡（暴力断网，需选择网络适配器）", "ProxyBridge（代理阻塞断网，可使用加速器）"])
+comboNetMethod := mainGui.Add("ComboBox", "x10 y310 w400 h200 Choose1", ["防火墙规则（裸连网络稳定，响应快）", "禁用网卡（暴力断网，需选择网络适配器）", "EDRSilencer（WFP过滤，可使用加速器）"])
 
 ; 加载已保存的选项，确保是有效整数
 savedMethod := IniRead(configFile, "Settings", "NetMethod", NET_FIREWALL)
@@ -155,7 +175,7 @@ mainGui.OnEvent("Close", GuiClose)   ; 处理右上角 X
 mainGui.Show()
 
 ; 等待用户关闭窗口
-WinWaitClose "自动化控制台"
+WinWaitClose windowstite
 
 ; ========== 窗口关闭后，从配置文件读取配置 ==========
 TheDivision2Path := IniRead(configFile, "Game", "TheDivision2Path", "")
@@ -221,32 +241,109 @@ ColorsMatch(color1, color2, variation) {
     return (Abs(r1 - r2) <= variation && Abs(g1 - g2) <= variation && Abs(b1 - b2) <= variation)
 }
 
+; 强制关闭指定进程的所有 TCP 连接
+CloseTCPConnections(pid) {
+    try {
+        shell := ComObject("WScript.Shell")
+        exec := shell.Exec('netstat -ano | findstr "' pid '"')
+        output := exec.StdOut.ReadAll()
+        
+        lines := StrSplit(Trim(output), "`n", "`r")
+        for line in lines {
+            if !InStr(line, "TCP") || InStr(line, "LISTENING")
+                continue
+                
+            ; 解析格式: TCP  192.168.1.100:12345  1.2.3.4:80  ESTABLISHED  1234
+            parts := StrSplit(Trim(line), " ", "`t")
+            cleanParts := []
+            for p in parts {
+                if p != ""
+                    cleanParts.Push(p)
+            }
+            if cleanParts.Length < 5
+                continue
+                
+            localAddr := cleanParts[2]
+            remoteAddr := cleanParts[3]
+            
+            localParts := StrSplit(localAddr, ":")
+            remoteParts := StrSplit(remoteAddr, ":")
+            if localParts.Length < 2 || remoteParts.Length < 2
+                continue
+                
+            localIP := localParts[1]
+            localPort := localParts[2]
+            remoteIP := remoteParts[1]
+            remotePort := remoteParts[2]
+            
+            ; 构造 MIB_TCPROW
+            row := Buffer(20, 0)
+            ; 状态: 12 = MIB_TCP_STATE_DELETE_TCB
+            NumPut("UInt", 12, row, 0)
+            
+            ; 本地地址（网络字节序）
+            ipParts := StrSplit(localIP, ".")
+            localAddrBin := (ipParts[1] << 24) | (ipParts[2] << 16) | (ipParts[3] << 8) | ipParts[4]
+            NumPut("UInt", localAddrBin, row, 4)
+            
+            ; 本地端口（网络字节序）
+            NumPut("UInt", (localPort << 8) | (localPort >> 8), row, 8)
+            
+            ; 远程地址
+            ipParts := StrSplit(remoteIP, ".")
+            remoteAddrBin := (ipParts[1] << 24) | (ipParts[2] << 16) | (ipParts[3] << 8) | ipParts[4]
+            NumPut("UInt", remoteAddrBin, row, 12)
+            
+            ; 远程端口
+            NumPut("UInt", (remotePort << 8) | (remotePort >> 8), row, 16)
+            
+            ; 调用 SetTcpEntry
+            DllCall("iphlpapi\SetTcpEntry", "Ptr", row)
+        }
+        return true
+    } catch {
+        return false
+    }
+}
+
 ;==断网==
 DisableAdapter(adapterName) {
-    global NetMethod, TheDivision2Path, pbPID
+    global NetMethod, TheDivision2Path, pbPath
     if (NetMethod = NET_FIREWALL) {
         ; 防火墙规则
         RunWait 'netsh advfirewall firewall add rule name="BlockGame_Out" dir=out action=block program="' TheDivision2Path '" enable=yes', , "Hide"
         RunWait 'netsh advfirewall firewall add rule name="BlockGame_In" dir=in action=block program="' TheDivision2Path '" enable=yes', , "Hide"
+        ToolTip "已断开网络(防火墙规则)"
+        SetTimer () => ToolTip(), -2000
     } else if (NetMethod = NET_ADAPTER) {
         ; 禁用网卡
         RunWait 'netsh interface set interface "' adapterName '" admin=disable', , "Hide"
+        ToolTip "已断开网络(禁用网卡)"
+        SetTimer () => ToolTip(), -2000
     } else if (NetMethod = NET_PROXYBRIDGE) {
-        ; ProxyBridge
+        ; EDRSilencer
+        RunWait '*RunAs "' pbPath '" block "' TheDivision2Path '"', , "Hide"
+         ; 2. 获取游戏进程 PID
         SplitPath(TheDivision2Path, &gameExe)
-        pbPath := A_ScriptDir "\ProxyBridge\ProxyBridge_CLI.exe"
-        if FileExist(pbPath) {
-            Run '"' pbPath '" --rule "' gameExe ':*:*:BOTH:BLOCK"', , "Hide", &pbPID
+        ; 3. 强制关闭所有现有 TCP 连接（可选）
+        if ProcessExist(gameExe) {
+            pid := WinGetPID("ahk_exe " gameExe)
+            if pid {
+                CloseTCPConnections(pid)
+            }
         } else {
-            MsgBox "ProxyBridge 未找到,请确认脚本目录下ProxyBridge/ProxyBridge_CLI.exe是否存在"
+            ; 游戏未运行，跳过或提示
+            ToolTip "游戏未运行，跳过关闭旧的TCP连接"
         }
+        ToolTip "已断开网络(WFP过滤)"
+        SetTimer () => ToolTip(), -2000
     }
 }
 ;========
 
 ;==恢复网络==
 EnableAdapter(adapterName) {
-    global NetMethod, pbPID
+    global NetMethod, pbPath
     if (NetMethod = NET_FIREWALL) {
         ; 删除防火墙规则
         RunWait 'netsh advfirewall firewall delete rule name="BlockGame_Out"', , "Hide"
@@ -255,11 +352,8 @@ EnableAdapter(adapterName) {
         ; 启用网卡
         RunWait 'netsh interface set interface "' adapterName '" admin=enable', , "Hide"
     } else if (NetMethod = NET_PROXYBRIDGE) {
-        ; 关闭 ProxyBridge 进程
-        if pbPID
-            ProcessClose pbPID
-        else
-            ProcessClose "ProxyBridge_CLI.exe"
+        ; 删除 EDRSilencer 规则
+        RunWait '*RunAs "' pbPath '" unblockall', , "Hide"
     }
 }
 ;===========
@@ -511,8 +605,6 @@ RunAutomation(){
                 Sleep 1000
                 ; 断网
                 DisableAdapter(adapter)
-                ToolTip "已断开网络"
-                SetTimer () => ToolTip(), -1500
                 foundSecond := CheckColorWithRetry(gameHwnd,0.431640625,0.55625,0x3C3A93,30,300,500,false)
                 if foundSecond{
                     ToolTip "已检测到控件恢复联网"
@@ -554,7 +646,7 @@ RunAutomation(){
                             ;进入装备页面
                             Sleep 500
                             equipment := CheckColorWithRetry(gameHwnd,0.725390625,0.240278,0x000000,0,5,500,false)
-                            equipmentnd := CheckColorWithRetry(gameHwnd,0.029296875,0.9263889,0xFFFFFF,0,10,100,false)
+                            equipmentnd := CheckColorWithRetry(gameHwnd,0.029296875,0.9263889,0xFFFFFF,0,5,100,false)
                             if equipment && !equipmentnd{
                                 ToolTip "确认进入装备页面"
                                 SetTimer () => ToolTip(), -2000
@@ -685,12 +777,11 @@ RunAutomation(){
 }
 ;终止程序
 exitkill(){
-    global adapter
+    global adapter, pbPath
     RunWait 'netsh interface set interface "' adapter '" admin=enable', , "Hide"
     RunWait 'netsh advfirewall firewall delete rule name="BlockGame_Out"', , "Hide"
     RunWait 'netsh advfirewall firewall delete rule name="BlockGame_In"', , "Hide"
-    ProcessClose "ProxyBridge_CLI.exe"
-    RunWait 'net stop windivert', , "Hide"
+    RunWait '*RunAs "' pbPath '" unblockall', , "Hide"
 }
 ;退出执行
 OnExit((*) => exitkill())
