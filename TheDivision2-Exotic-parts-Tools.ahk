@@ -552,11 +552,12 @@ RunAutomation(){
                             Sleep 1800
                             Send "{F up}"
                             ;进入装备页面
-                            equipment := CheckColorWithRetry(gameHwnd,0.725390625,0.240278,0x000000,0, 10,500,false)
-                            if equipment{
+                            Sleep 500
+                            equipment := CheckColorWithRetry(gameHwnd,0.725390625,0.240278,0x000000,0,5,500,false)
+                            equipmentnd := CheckColorWithRetry(gameHwnd,0.029296875,0.9263889,0xFFFFFF,0,10,100,false)
+                            if equipment && !equipmentnd{
                                 ToolTip "确认进入装备页面"
                                 SetTimer () => ToolTip(), -2000
-                                Sleep 500
                                 SendInput "{E down}"
                                 Sleep 50
                                 SendInput "{E up}"
@@ -565,7 +566,7 @@ RunAutomation(){
                                 if equipment2 {
                                     ToolTip "开始收取武器"
                                     SetTimer () => ToolTip(), -2000
-                                    Sleep 1000
+                                    Sleep 700
                                     SendInput "{D down}"
                                     Sleep 50
                                     SendInput "{D up}"
@@ -573,23 +574,23 @@ RunAutomation(){
                                     SendInput "{W down}"
                                     Sleep 50
                                     SendInput "{W up}"
-                                    Sleep 200
+                                    Sleep 100
                                     SendInput "{Space down}"
                                     Sleep 50
                                     SendInput "{Space up}"
-                                    Sleep 2000
+                                    Sleep 1200
                                     SendInput "{X down}"
                                     Sleep 50
                                     SendInput "{X up}"
-                                    Sleep 200
+                                    Sleep 100
                                     SendInput "{S down}"
                                     Sleep 50
                                     SendInput "{S up}"
-                                    Sleep 200
+                                    Sleep 100
                                     SendInput "{Space down}"
                                     Sleep 50
                                     SendInput "{Space up}"
-                                    Sleep 200
+                                    Sleep 300
                                     Loop 4 {
                                         SendInput "{F down}"
                                         Sleep 50
@@ -603,7 +604,7 @@ RunAutomation(){
                                         SendInput "{Q up}"
                                         Sleep 50
                                     }
-                                        Sleep 500
+                                        Sleep 450
                                         ToolTip "开始拆解"
                                         SetTimer () => ToolTip(), -2000
                                         SendInput "{Tab down}"
@@ -626,7 +627,7 @@ RunAutomation(){
                                 SendInput "{ESC up}"
                                 Sleep 500
                                 SendInput "{G down}"
-                                Sleep 80
+                                Sleep 50
                                 SendInput "{G up}"
                                 Sleep 500
                                 SendInput "{Space down}"
@@ -640,7 +641,7 @@ RunAutomation(){
                             SendInput "{ESC up}"
                             Sleep 500
                             Send "{G down}"
-                            Sleep 80
+                            Sleep 50
                             Send "{G up}"
                             Sleep 500
                             SendInput "{Space down}"
