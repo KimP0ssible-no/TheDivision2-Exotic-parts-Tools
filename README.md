@@ -1,20 +1,20 @@
-# -------------   全境封锁2奇特零件自动化工具   -------------
-## [Releases](https://github.com/MuFen-mker/TheDivision2-Exotic-parts-Tools/releases)
+# ------------- The Division 2 Exotic Parts Automation Tool -------------
+## [Releases](https://github.com/kimattree/TheDivision2-Exotic-parts-Tools/releases)
 
-一款适用于全境封锁2（国际服）的奇特零件自动化获取工具
+An automation tool for obtaining Exotic parts in The Division 2 (International Server)
 
-完全绿色，无任何修改内存的操作，本质只是一个自动化脚本
+Completely clean, no memory modification operations, essentially just an automation script
 
-源码完全开放，无任何恶意代码
+Source code is fully open, no malicious code
 
-如果你担心这会影响到你的游戏账号，那么不建议你使用
+If you are concerned this may affect your game account, then it is not recommended to use it
 
-由AutoHotkeyV2编写，本人是初学AutoHotkey（仅学习一周），这是我的第一个作品，如果有更好的意见欢迎提Issues
+Written in AutoHotkey V2. I am a beginner at AutoHotkey (only one week of learning). This is my first project. If you have any suggestions, feel free to submit Issues
 
-# -----------------------   前置需要   -----------------------
-仅支持16:9比例
+# ----------------------- Prerequisites -----------------------
+Only supports 16:9 aspect ratio
 
-其他比例可在windows显示设置中调整为以下分辨率
+Other aspect ratios can be adjusted to the following resolutions in Windows Display Settings
 
 1080P:1920*1080
 
@@ -22,64 +22,63 @@
 
 4K:3840*2160
 
-已购买摇篮曲和冷酷无情组合包
+Must have purchased the Lullaby and Ruthless bundle
 
-抬头显示器（HUD）是默认的
+HUD (Heads-Up Display) must be set to default
 
-设置-游戏性-”聊天窗口透明度“ 设置为100
+Settings > Gameplay > "Chat Window Transparency" set to 100
 
-设置-影像-窗口模式-窗口化（全屏幕）
+Settings > Video > Window Mode > Windowed (Fullscreen)
 
-不能使用滤镜
+Do not use filters
 
-如果有使用帧生成，超分辨率等，建议关闭
+If using frame generation, super resolution, etc., it is recommended to disable them
 
-建议把装备全部标记最爱，然后把邮箱里面掏空防止误拆
+It is recommended to mark all gear as favorites, and empty your mailbox to prevent accidental dismantling
 
-留出第四个角色空位
+Leave the fourth character slot empty
 
-确保账号全部角色的背包和箱子里面没有冷酷无情和摇篮曲，有的话拆掉
+Ensure that none of your account's characters have Ruthless or Lullaby in their backpack or stash; if they do, dismantle them
 
-第一个角色传送 “商店” 安全屋，别移动
+Fast travel to the "Shop" safe house on the first character, don't move
 
-打开聊天框点X，确认左下角有聊天框的图标后注销
+Open the chat box and click X, confirm the chat box icon appears in the bottom left corner, then log out
 
-# -----------------------   启动程序   -----------------------
-右键Division2.exe，以管理员身份运行
+# ----------------------- Starting the Program -----------------------
+Right-click Division2.exe and run as administrator
 
-初次启动设置好游戏路径，选择当前网络连接的网络适配器，保存并退出
+On first launch, set the game path, select your current network adapter, save and exit
 
-切换到游戏选人界面，在第一个角色按下F10，脚本开始运行，如提示“无法找到游戏窗口”，重新运行一次程序即可
+Switch to the character selection screen, press F10 on the first character to start the script. If prompted "Game window not found", simply restart the program
 
-# -----------------------   断网说明   -----------------------
-防火墙规则（默认）：适合裸连网络稳定，响应速度最快，不能用加速器
+# ----------------------- Network Disconnection Methods -----------------------
+Firewall Rules (Default): Suitable for stable direct connections, fastest response, cannot use VPN/accelerator
 
-禁用网卡：模拟拔线，整机断网，最暴力，可能会导致ubi掉线，不能用加速器，最不推荐
+Disable Network Adapter: Simulates unplugging the cable, disconnects the entire machine, most aggressive, may cause Ubisoft disconnection, cannot use VPN/accelerator, least recommended
 
-（推荐）WFP过滤：可以搭配加速器一起用，第一次循环可能会导致断网后延迟加载（卡一会0%），需要开着加速器重新登陆一次育碧平台 （依赖开源项目EDRSilencer）
+(Recommended) WFP Filter: Can be used with VPN/accelerator. The first cycle may cause delayed loading after disconnection (stuck at 0% for a while). You need to re-login to the Ubisoft platform with the accelerator running (depends on the open-source project EDRSilencer)
 [EDRSilencer](https://github.com/netero1010/EDRSilencer)
 
-~~代理阻止：原理是临时顶掉加速器代理，所以可以搭配加速器一起用，可能会导致断网后延迟加载影响效率，需要开着加速器重新登陆一次育碧平台
-（依赖开源项目ProxyBridge，在此表达感谢）~~（1.0.2）
+~~Proxy Block: Works by temporarily overriding the accelerator proxy, so it can be used with VPN/accelerator. May cause delayed loading after disconnection affecting efficiency. You need to re-login to the Ubisoft platform with the accelerator running
+(Depends on the open-source project ProxyBridge, with thanks)~~(1.0.2)
 ~~[ProxyBridge](https://github.com/InterceptSuite/ProxyBridge)~~
 
-# -----------------------   热键说明   -----------------------
-F10：开始运行程序主要逻辑
+# ----------------------- Hotkey Instructions -----------------------
+F10: Start running the main program logic
 
-F11：执行本轮循环后暂停，程序不会退出
+F11: Pause after completing the current cycle, the program will not exit
 
-F12：强行终止运行并退出程序
+F12: Force stop and exit the program
 
-F9：启动重置模式
+F9: Activate reset mode
 
-重置模式：程序带有卡死检测，如长时间未检测到目标点，游戏崩溃，运行逻辑卡住等，会自动触发该模式，判断为游戏在运行，则强行停止，未运行则自动重启游戏并且自动复位重新开始运行程序，如果需要手动重置，按一下等待程序自动操作
+Reset Mode: The program has freeze detection. If no target point is detected for a long time, the game crashes, or the running logic gets stuck, this mode will be triggered automatically. If the game is running, it will be force-stopped; if not running, the game will be automatically restarted and the program will reset and resume. If you need to manually reset, press the key once and wait for the program to operate automatically
 
-# -----------------------   测试重置   -----------------------
-在游戏运行情况下，按F9，等待大概5分钟，后续如程序恢复正常运行，则重置正常
+# ----------------------- Testing Reset -----------------------
+While the game is running, press F9 and wait about 5 minutes. If the program resumes normal operation afterwards, the reset is working correctly
 
-在仅育碧平台运行的情况下，按F9，如育碧平台马上关闭，且5分钟后自动恢复程序运行，则重置正常
+With only the Ubisoft platform running, press F9. If the Ubisoft platform closes immediately and the program automatically resumes after 5 minutes, the reset is working correctly
 
-在游戏和育碧平台均未运行的情况下，按F9，如5分钟后自动恢复程序运行，则重置正常
+With neither the game nor the Ubisoft platform running, press F9. If the program automatically resumes after 5 minutes, the reset is working correctly
 
-重置有问题请告诉我卡在哪里
-
+If there are issues with the reset, please let me know where it gets stuck
