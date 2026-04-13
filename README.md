@@ -1,5 +1,6 @@
-# ------------- The Division 2 Exotic Parts Automation Tool -------------
-## [Releases](https://github.com/kimattree/TheDivision2-Exotic-parts-Tools/releases)
+# The Division 2 Exotic Parts Automation Tool
+
+## [Releases](https://github.com/KimP0ssible-no/TheDivision2-Exotic-parts-Tools/releases)
 
 An automation tool for obtaining Exotic parts in The Division 2 (International Server)
 
@@ -11,16 +12,15 @@ If you are concerned this may affect your game account, then it is not recommend
 
 Written in AutoHotkey V2. I am a beginner at AutoHotkey (only one week of learning). This is my first project. If you have any suggestions, feel free to submit Issues
 
-# ----------------------- Prerequisites -----------------------
+## Prerequisites
+
 Only supports 16:9 aspect ratio
 
 Other aspect ratios can be adjusted to the following resolutions in Windows Display Settings
 
-1080P:1920*1080
-
-2K:2560*1440
-
-4K:3840*2160
+- 1080P: 1920x1080
+- 2K: 2560x1440
+- 4K: 3840x2160
 
 Must have purchased the Lullaby and Ruthless bundle
 
@@ -44,37 +44,35 @@ Fast travel to the "Shop" safe house on the first character, don't move
 
 Open the chat box and click X, confirm the chat box icon appears in the bottom left corner, then log out
 
-# ----------------------- Starting the Program -----------------------
+## Starting the Program
+
 Right-click Division2.exe and run as administrator
 
 On first launch, set the game path, select your current network adapter, save and exit
 
 Switch to the character selection screen, press F10 on the first character to start the script. If prompted "Game window not found", simply restart the program
 
-# ----------------------- Network Disconnection Methods -----------------------
-Firewall Rules (Default): Suitable for stable direct connections, fastest response, cannot use VPN/accelerator
+## Network Disconnection Methods
 
-Disable Network Adapter: Simulates unplugging the cable, disconnects the entire machine, most aggressive, may cause Ubisoft disconnection, cannot use VPN/accelerator, least recommended
+**Firewall Rules (Default):** Suitable for stable direct connections, fastest response, cannot use VPN/accelerator
 
-(Recommended) WFP Filter: Can be used with VPN/accelerator. The first cycle may cause delayed loading after disconnection (stuck at 0% for a while). You need to re-login to the Ubisoft platform with the accelerator running (depends on the open-source project EDRSilencer)
-[EDRSilencer](https://github.com/netero1010/EDRSilencer)
+**Disable Network Adapter:** Simulates unplugging the cable, disconnects the entire machine, most aggressive, may cause Ubisoft disconnection, cannot use VPN/accelerator, least recommended
 
-~~Proxy Block: Works by temporarily overriding the accelerator proxy, so it can be used with VPN/accelerator. May cause delayed loading after disconnection affecting efficiency. You need to re-login to the Ubisoft platform with the accelerator running
-(Depends on the open-source project ProxyBridge, with thanks)~~(1.0.2)
-~~[ProxyBridge](https://github.com/InterceptSuite/ProxyBridge)~~
+**(Recommended) WFP Filter:** Can be used with VPN/accelerator. The first cycle may cause delayed loading after disconnection (stuck at 0% for a while). You need to re-login to the Ubisoft platform with the accelerator running (depends on the open-source project [EDRSilencer](https://github.com/netero1010/EDRSilencer))
 
-# ----------------------- Hotkey Instructions -----------------------
-F10: Start running the main program logic
+## Hotkey Instructions
 
-F11: Pause after completing the current cycle, the program will not exit
+| Key | Action |
+|-----|--------|
+| F10 | Start running the main program logic |
+| F11 | Pause after completing the current cycle, the program will not exit |
+| F12 | Force stop and exit the program |
+| F9 | Activate reset mode |
 
-F12: Force stop and exit the program
+**Reset Mode:** The program has freeze detection. If no target point is detected for a long time, the game crashes, or the running logic gets stuck, this mode will be triggered automatically. If the game is running, it will be force-stopped; if not running, the game will be automatically restarted and the program will reset and resume. If you need to manually reset, press the key once and wait for the program to operate automatically
 
-F9: Activate reset mode
+## Testing Reset
 
-Reset Mode: The program has freeze detection. If no target point is detected for a long time, the game crashes, or the running logic gets stuck, this mode will be triggered automatically. If the game is running, it will be force-stopped; if not running, the game will be automatically restarted and the program will reset and resume. If you need to manually reset, press the key once and wait for the program to operate automatically
-
-# ----------------------- Testing Reset -----------------------
 While the game is running, press F9 and wait about 5 minutes. If the program resumes normal operation afterwards, the reset is working correctly
 
 With only the Ubisoft platform running, press F9. If the Ubisoft platform closes immediately and the program automatically resumes after 5 minutes, the reset is working correctly

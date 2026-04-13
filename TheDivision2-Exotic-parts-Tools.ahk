@@ -419,7 +419,7 @@ reboot(){
                 mainObj := CheckColorWithRetry(gamghwd,0.50234375,0.936,0x136AFF,30,150,1000,false)
                 if mainObj{
                     Sleep 1000
-                    Loop "Recovered, watchdog process exiting"
+                    ToolTip "Recovered, watchdog process exiting"
                     SetTimer () => ToolTip(), -1500
                     netError += 1
                     RunAutomation()
@@ -516,7 +516,7 @@ reboot(){
         loop 30{
             if foundol{
                 Sleep 1000
-                Loop "Recovered, watchdog process exiting"
+                ToolTip "Recovered, watchdog process exiting"
                 SetTimer () => ToolTip(), -1500
                 numberOfErrors += 1
                 RunAutomation()
