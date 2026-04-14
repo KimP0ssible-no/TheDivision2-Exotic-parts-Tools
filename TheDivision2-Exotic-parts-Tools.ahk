@@ -9,7 +9,7 @@ if !A_IsAdmin {
 
 ;=======Global Variables=========
 ;EDRSilencer path
-global windowstite := "TheDivision2-Exotic-parts-Tools-1.0.3"
+global windowstite := "TheDivision2-Exotic-parts-Tools-1.0.5-en"
 global pbPath := A_ScriptDir "\EDRSilencer\EDRSilencer.exe"
 global stopLoop := false
 global TheDivision2Path := IniRead(A_ScriptDir "\config.ini", "Game", "TheDivision2Path", "")
@@ -200,14 +200,9 @@ CheckColorWithRetry(hwnd, percentX, percentY, targetColor, variation := 20, maxR
                 return false
             }
         WinGetPos(&winX, &winY, &winW, &winH, hwnd)
-        ; Convert percentage to absolute coordinates
-        screenX := winW * percentX
-        screenY := winH * percentY
-
-        if debug {
-            ToolTip "Check color position: " screenX "," screenY "`nExpected: " Format("{:06X}", targetColor)
-            SetTimer () => ToolTip(), -1000
-        }
+        ; Convert percentage to absolute screen coordinates
+        screenX := winX + winW * percentX
+        screenY := winY + winH * percentY
 
         ; Use DllCall to get color
         hDC := DllCall("GetDC", "Ptr", 0, "Ptr")
@@ -215,8 +210,7 @@ CheckColorWithRetry(hwnd, percentX, percentY, targetColor, variation := 20, maxR
         DllCall("ReleaseDC", "Ptr", 0, "Ptr", hDC)
 
         if debug {
-            ToolTip "Actual color: " Format("{:06X}", actualColor)
-            SetTimer () => ToolTip(), -1000
+            ToolTip "Pos: " Round(screenX) "," Round(screenY) "`nExpected: " Format("{:06X}", targetColor) "`nActual: " Format("{:06X}", actualColor) "`nRetry: " A_Index "/" maxRetries
         }
 
         if ColorsMatch(actualColor, targetColor, variation) {
@@ -239,6 +233,44 @@ ColorsMatch(color1, color2, variation) {
     g2 := (color2 >> 8) & 0xFF
     b2 := color2 & 0xFF
     return (Abs(r1 - r2) <= variation && Abs(g1 - g2) <= variation && Abs(b1 - b2) <= variation)
+}
+
+; Character slot X positions (measured with ColorPicker)
+global SLOT1_X := 0.501953
+global SLOT2_X := 0.517969
+global SLOT3_X := 0.533984
+global SLOT_Y := 0.935
+
+; Detect if we're on the character select screen (any slot has orange)
+; Does NOT navigate - just detects
+FindCharSelectAnySlot(hwnd, maxRetries := 150, retryDelay := 1000) {
+    loop maxRetries {
+        if !WinExist("ahk_id " hwnd)
+            return false
+        if CheckColorWithRetry(hwnd, SLOT1_X, SLOT_Y, 0x136AFF, 30, 1, 0, false)
+            return true
+        if CheckColorWithRetry(hwnd, SLOT2_X, SLOT_Y, 0x136AFF, 30, 1, 0, false)
+            return true
+        if CheckColorWithRetry(hwnd, SLOT3_X, SLOT_Y, 0x136AFF, 30, 1, 0, false)
+            return true
+        Sleep retryDelay
+    }
+    return false
+}
+
+; Detect character select screen, press Z 3 times to go to slot 1
+FindCharSelectSlot1(hwnd, maxRetries := 150, retryDelay := 1000) {
+    if !FindCharSelectAnySlot(hwnd, maxRetries, retryDelay)
+        return false
+    ; Press Z 3 times to ensure we're on the leftmost character
+    Loop 3 {
+        SendInput "{z down}"
+        Sleep 50
+        SendInput "{z up}"
+        Sleep 300
+    }
+    Sleep 500
+    return CheckColorWithRetry(hwnd, SLOT1_X, SLOT_Y, 0x136AFF, 30, 10, 500, false)
 }
 
 ; Force close all TCP connections for a specified process
@@ -322,7 +354,7 @@ DisableAdapter(adapterName) {
         SetTimer () => ToolTip(), -2000
     } else if (NetMethod = NET_PROXYBRIDGE) {
         ; EDRSilencer
-        RunWait '*RunAs "' pbPath '" block "' TheDivision2Path '"', , "Hide"
+        RunWait '"' pbPath '" block "' TheDivision2Path '"', , "Hide"
          ; 2. Get game process PID
         SplitPath(TheDivision2Path, &gameExe)
         ; 3. Force close all existing TCP connections (optional)
@@ -353,7 +385,7 @@ EnableAdapter(adapterName) {
         RunWait 'netsh interface set interface "' adapterName '" admin=enable', , "Hide"
     } else if (NetMethod = NET_PROXYBRIDGE) {
         ; Delete EDRSilencer rules
-        RunWait '*RunAs "' pbPath '" unblockall', , "Hide"
+        RunWait '"' pbPath '" unblockall', , "Hide"
     }
 }
 ;===========
@@ -373,7 +405,7 @@ winWidth := 220   ; Width slightly wider than text width
 winHeight := 100   ; Height enough to display three lines (increase to 100, 110 if bottom part is not shown)
 
 ; Window position (top-right corner of screen, 10 pixels from right edge, 10 pixels from top edge)
-xPos := A_ScreenWidth - winWidth - 10
+xPos := A_ScreenWidth - winWidth - 40
 yPos := 10
 
 ; Show window
@@ -416,7 +448,7 @@ reboot(){
                 Sleep 100
                 SendInput "{Space up}"
                 Sleep 500
-                mainObj := CheckColorWithRetry(gamghwd,0.50234375,0.936,0x136AFF,30,150,1000,false)
+                mainObj := FindCharSelectAnySlot(gamghwd, 150, 1000)
                 if mainObj{
                     Sleep 1000
                     ToolTip "Recovered, watchdog process exiting"
@@ -511,7 +543,7 @@ reboot(){
         ;Enter main page
         ;Check if at character selection screen
         advertisement := true
-        foundol := CheckColorWithRetry(gamghwd,0.50234375,0.9361,0x136AFF,20, 60,1000,false)
+        foundol := FindCharSelectAnySlot(gamghwd, 60, 1000)
         found2 :=  CheckColorWithRetry(gamghwd,0.498046875,0.250694,0x136AFF,20, 30,1000,false)
         loop 30{
             if foundol{
@@ -565,7 +597,7 @@ RunAutomation(){
         totalRetries := 3
         found := false
         ;Check if on main character
-        mainObj := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,30,150,1000,false)
+        mainObj := FindCharSelectSlot1(gameHwnd, 150, 1000)
         if mainObj{
             ToolTip "Main character detected, starting character switch"
             SetTimer () => ToolTip(), -1500
@@ -621,7 +653,7 @@ RunAutomation(){
                     SendInput "{Space up}"
                     ;Check switch to main character
                     nextEquipment:
-                    foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,30,150,1000,false)
+                    foundtheer := FindCharSelectAnySlot(gameHwnd, 150, 1000)
                     if foundtheer{
                         ToolTip "Control detected, continuing to dismantle parts on main character"
                         SetTimer () => ToolTip(), -1500
@@ -742,7 +774,7 @@ RunAutomation(){
                             ToolTip "Preparing to start next cycle"
                             SetTimer () => ToolTip(), -1500
                             ;Confirm return to main screen
-                            foundtheer := CheckColorWithRetry(gameHwnd,0.50234375,0.936,0x136AFF,30, 150,1000,false)
+                            foundtheer := FindCharSelectSlot1(gameHwnd, 150, 1000)
                             if foundtheer{
                                 iterationCount += 1
                                 goto End
@@ -781,7 +813,7 @@ exitkill(){
     RunWait 'netsh interface set interface "' adapter '" admin=enable', , "Hide"
     RunWait 'netsh advfirewall firewall delete rule name="BlockGame_Out"', , "Hide"
     RunWait 'netsh advfirewall firewall delete rule name="BlockGame_In"', , "Hide"
-    RunWait '*RunAs "' pbPath '" unblockall', , "Hide"
+    RunWait '"' pbPath '" unblockall', , "Hide"
 }
 ;Exit handler
 OnExit((*) => exitkill())
